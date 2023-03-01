@@ -1,21 +1,30 @@
-var vertexShaderSource = `#version 300 es
+import space from './space/space.js'
 
-in vec4 a_position;
+const vertexShaderSource = `#version 300 es
+
+in vec2 a_position;
+
+uniform vec2 u_resolution;
 
 void main() {
+  vec2 zeroToOne = a_position / u_resolution;
+  vec2 zeroToTwo = zeroToOne * 2.0;
+  vec2 clipSpace = zeroToTwo - 1.0;
 
-  gl_Position = a_position;
+  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
 }
 `
 
-var fragmentShaderSource = `#version 300 es
+const fragmentShaderSource = `#version 300 es
 
 precision highp float;
+
+uniform vec4 u_color;
 
 out vec4 outColor;
 
 void main() {
-  outColor = vec4(1, 0, 0.5, 1);
+  outColor = u_color;
 }
 `
 
@@ -77,19 +86,14 @@ function main() {
 
   // look up where the vertex data needs to go.
   const positionAttributeLocation = gl.getAttribLocation(program, "a_position")
+  const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution")
+  const colorLocation = gl.getUniformLocation(program, "u_color")
 
   // Create a buffer and put three 2d clip space points in it
   const positionBuffer = gl.createBuffer()
 
   // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-
-  const positions = [
-    0, 0,
-    0, 0.5,
-    0.2, 0,
-  ]
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
 
   // Create a vertex array object (attribute state)
   const vao = gl.createVertexArray()
@@ -101,13 +105,12 @@ function main() {
   gl.enableVertexAttribArray(positionAttributeLocation)
 
   // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-  var size = 2          // 2 components per iteration
-  var type = gl.FLOAT   // the data is 32bit floats
-  var normalize = false // don't normalize the data
-  var stride = 0        // 0 = move forward size * sizeof(type) each iteration to get the next position
-  var offset = 0        // start at the beginning of the buffer
-  gl.vertexAttribPointer(
-      positionAttributeLocation, size, type, normalize, stride, offset)
+  const size = 2          // 2 components per iteration
+  const type = gl.FLOAT   // the data is 32bit floats
+  const normalize = false // don't normalize the data
+  const stride = 0        // 0 = move forward size * sizeof(type) each iteration to get the next position
+  const offset = 0        // start at the beginning of the buffer
+  gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset)
 
   webglUtils.resizeCanvasToDisplaySize(gl.canvas)
 
@@ -124,11 +127,9 @@ function main() {
   // Bind the attribute/buffer set we want.
   gl.bindVertexArray(vao)
 
-  // draw
-  var primitiveType = gl.TRIANGLES
-  var offset = 0
-  var count = 3
-  gl.drawArrays(primitiveType, offset, count)
+  gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height)
+
+  space(gl, colorLocation)
 }
 
 main()
